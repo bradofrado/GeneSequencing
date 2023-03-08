@@ -2,6 +2,8 @@
 
 import signal
 import sys
+from SequenceProcessor import SequenceProcessor
+from SequenceLoader import SequenceLoader
 from which_pyqt import PYQT_VER
 if PYQT_VER == 'PYQT5':
 	from PyQt5.QtWidgets import *
@@ -23,6 +25,7 @@ import math
 # Import in the code with the actual implementation
 from GeneSequencing import *
 
+FILENAME = 'genomes.txt'
 
 class Proj4GUI( QMainWindow ):
 
@@ -32,35 +35,28 @@ class Proj4GUI( QMainWindow ):
 		self.RED_STYLE	 = "background-color: rgb(255, 220, 220)"
 		self.PLAIN_STYLE = "background-color: rgb(255, 255, 255)"
 
-		self.seqs = self.loadSequencesFromFile()
+		loader = SequenceLoader()
+		self.seqs = loader.load(FILENAME)
 		self.processed_results = []
 
 		self.initUI()
-		self.solver = GeneSequencing()
+		self.processor = SequenceProcessor(self.seqs)
 
 	def processClicked(self):
-		sequences = [ self.seqs[i][2] for i in sorted(self.seqs.keys()) ]
-
 		self.statusBar.showMessage('Processing...')
 		app.processEvents()
-		start = time.time()
-
-		for i in range(len(sequences)):
-			jresults = []
-			for j in range(len(sequences)):
+		ns, processed_results, seqs = self.processor.process(self.banded.isChecked(), int(self.alignLength.text()))
+		for i in range(len(processed_results)):
+			for j in range(len(processed_results)):
+				s = processed_results[i][j]
 				if(j < i):
-					s = {}
+					pass
 				else:
-					s = self.solver.align(sequences[i], sequences[j], banded=self.banded.isChecked(),
-													align_length=int(self.alignLength.text()))
 					self.table.item(i,j).setText('{}'.format(int(s['align_cost']) if s['align_cost'] \
-																					 != math.inf else s['align_cost']))
+																					!= math.inf else s['align_cost']))
 					app.processEvents()
-				jresults.append(s)
-			self.processed_results.append(jresults)
-
-		end = time.time()
-		ns = end-start
+		self.processed_results = processed_results
+		self.seqs = seqs
 		nm = math.floor(ns/60.)
 		ns = ns - 60.*nm
 		if nm > 0:
@@ -111,31 +107,6 @@ class Proj4GUI( QMainWindow ):
 			results = self.processed_results[i][j]
 			self.seq1_chars.setText( '{}'.format(results['seqi_first100']) )
 			self.seq2_chars.setText( '{}'.format(results['seqj_first100']) )
-
-	def loadSequencesFromFile( self ):
-		FILENAME = 'genomes.txt'
-		raw = open(FILENAME,'r').readlines()
-		sequences = {}
-
-		i = 0
-		cur_id	= ''
-		cur_str = ''
-		for liner in raw:
-			line = liner.strip()
-			if '#' in line:
-				if len(cur_id) > 0:
-					sequences[i] = (i,cur_id,cur_str)
-					cur_id	= ''
-					cur_str = ''
-					i += 1
-				parts = line.split('#')
-				cur_id = parts[0]
-				cur_str += parts[1]
-			else:
-				cur_str += line
-		if len(cur_str) > 0 or len(cur_id) > 0:
-			sequences[i] = (i,cur_id,cur_str)
-		return sequences
 
 	def getTableDims( self ):
 		w = self.table.columnWidth(self.table.rowCount()-1) - 4
