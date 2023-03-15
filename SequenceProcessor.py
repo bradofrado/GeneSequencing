@@ -1,6 +1,7 @@
 import time
 import math
 
+from SequenceLoader import SequenceLoader
 from GeneSequencing import GeneSequencing
 
 class SequenceProcessor:
@@ -27,3 +28,14 @@ class SequenceProcessor:
       end = time.time()
       ns = end-start
       return ns, processed_results, self.seqs
+    
+if __name__ == '__main__':
+	loader = SequenceLoader()
+	seqs = loader.load('test.txt')
+	processor = SequenceProcessor(seqs)
+	t, results, seqs = processor.process(False, 1000)
+
+	for result in results:
+		for sub in result:
+			print('Assignment1: ' + sub['seqi_first100'] + ' Assignment2: ' + sub['seqj_first100'] + ' Score: ' + str(sub['align_cost']))
+  

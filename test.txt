@@ -1,0 +1,2 @@
+test1#ATGCC
+test2#TACGCA

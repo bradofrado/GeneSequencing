@@ -5,10 +5,18 @@
 	"version": "0.2.0",
 	"configurations": [
 		{
-			"name": "Python: Current File",
+			"name": "GUI",
 			"type": "python",
 			"request": "launch",
 			"program": "Proj4GUI.py",
+			"console": "integratedTerminal",
+			"justMyCode": true
+		},
+		{
+			"name": "Command Line",
+			"type": "python",
+			"request": "launch",
+			"program": "SequenceProcessor.py",
 			"console": "integratedTerminal",
 			"justMyCode": true
 		}
