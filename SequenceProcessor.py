@@ -33,9 +33,11 @@ if __name__ == '__main__':
 	loader = SequenceLoader()
 	seqs = loader.load('test.txt')
 	processor = SequenceProcessor(seqs)
-	t, results, seqs = processor.process(False, 1000)
+	t, results, seqs = processor.process(True, 100)
 
 	for result in results:
 		for sub in result:
+			if len(sub) == 0: 
+				continue
 			print('Assignment1: ' + sub['seqi_first100'] + ' Assignment2: ' + sub['seqj_first100'] + ' Score: ' + str(sub['align_cost']))
   

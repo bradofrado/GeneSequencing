@@ -32,10 +32,43 @@ class GeneSequencing:
 
 	def align( self, seq1, seq2, banded, align_length):
 		self.banded = banded
+		self.d = 3
 		self.MaxCharactersToAlign = align_length
 
 		self.init(seq1, seq2)
+		self.calc_edit_distance_banded() if self.banded else self.calc_edit_distance()
+				
 
+###################################################################################################
+# your code should replace these three statements and populate the three variables: score, alignment1 and alignment2
+		x = self.d if self.banded else -1
+		if self.banded:
+			while x > 0 and self.m[-1][x] == None:
+				x -= 1
+		if self.m[-1][x] == None:
+			score = float('inf')
+			alignment1 = 'No Alignment Possible';
+			alignment2 = alignment1
+		else: 
+			score = self.m[-1][x].val
+			mod1, mod2 = self.get_modified_strings(seq1, seq2)
+			alignment1 = mod1
+			alignment2 = mod2
+###################################################################################################
+
+		return {'align_cost':score, 'seqi_first100':alignment1, 'seqj_first100':alignment2}
+	
+	def init(self, seq1, seq2):
+		self.seq1_length = min(len(seq1), self.MaxCharactersToAlign)
+		self.seq2_length = min(len(seq2), self.MaxCharactersToAlign)
+		len1 = 2*self.d if self.banded else self.seq1_length
+		len2 = self.seq2_length
+		self.m = [[None] * (len1 + 1) for i in range(len2 + 1)]
+		self.pointers = [[None] * (len1 + 1) for i in range(len2 + 1)]
+		self.seq1 = seq1
+		self.seq2 = seq2
+
+	def calc_edit_distance(self):
 		for i in range(len(self.m)):
 			for j in range(len(self.m[i])):
 				if i == 0 and j == 0:
@@ -50,41 +83,45 @@ class GeneSequencing:
 				self.set_val(i, j, minv)
 				self.set_op(i, j, self.get_op(insert, delete, match, op))
 				self.set_pointer(i, j, self.get_pointer(i, j, insert, delete, match))
-				
-
-###################################################################################################
-# your code should replace these three statements and populate the three variables: score, alignment1 and alignment2
-		score = self.m[-1][-1].val
-		mod1, mod2 = self.get_modified_strings(seq1, seq2)
-		alignment1 = '{}  DEBUG:({} chars,align_len={}{})'.format(mod1, 
-			len(seq1), align_length, ',BANDED' if banded else '')
-		alignment2 = '{}  DEBUG:({} chars,align_len={}{})'.format(mod2, 
-			len(seq2), align_length, ',BANDED' if banded else '')
-###################################################################################################
-
-		return {'align_cost':score, 'seqi_first100':alignment1, 'seqj_first100':alignment2}
 	
-	def init(self, seq1, seq2):
-		self.m = [[None] * (len(seq1) + 1) for i in range(len(seq2) + 1)]
-		self.pointers = [[None] * (len(seq1) + 1) for i in range(len(seq2) + 1)]
-		self.seq1 = seq1
-		self.seq2 = seq2
+	def calc_edit_distance_banded(self):
+		for i in range(len(self.m)):
+			for j in range(self.d * 2 + 1):
+				if j < self.d - i or j - self.d + i > len(self.seq1):
+					continue
+				elif i == 0 and j == self.d:
+					self.set_val(i, j, 0)
+					self.set_op(i, j, MATCH)
+					self.set_pointer(i, j, None)
+					continue
+				insert = self.check_insert(i, j)
+				delete = self.check_delete(i, j)
+				match, op = self.check_match(i, j)
+				minv = min(insert, delete, match)
+				self.set_val(i, j, minv)
+				self.set_op(i, j, self.get_op(insert, delete, match, op))
+				self.set_pointer(i, j, self.get_pointer(i, j, insert, delete, match))
+
 
 	def get_modified_strings(self, seq1, seq2):
-		mod1 = '' + seq1
-		mod2 = '' + seq2
-		next = self.m[-1][-1]
-		i = 1
-		j = 1
-		while next != None and i <= 100 and j <= 100:
-			x = len(seq2) - i
-			y = len(seq1) - j
+		mod1 = '' + seq1[:self.seq1_length]
+		mod2 = '' + seq2[:self.seq2_length]
+		x = self.d if self.banded else -1
+		if self.banded:
+			while x > 0 and self.m[-1][x] == None:
+				x -= 1
+		next = self.m[-1][x]
+		i = 0
+		j = 0
+		while next != None: #and i <= 100 and j <= 100:
+			x = self.seq2_length - i
+			y = self.seq1_length - j
 			if next.op == 'insert':
+				mod2 = insert(mod2, '-', x)
+				j += 1
+			elif next.op == 'delete':
 				mod1 = insert(mod1, '-', y)
 				i += 1
-			elif next.op == 'delete':
-				mod2 = replace(mod2, '-', x)
-				j += 1
 			#elif next.op == 'sub':
 				#mod1 = replace(mod1, mod2[x], y)
 			next = next.pointer
@@ -96,26 +133,29 @@ class GeneSequencing:
 
 
 	def check_insert(self, i, j):
-		if j - 1 < 0:
+		lim = self.d - i if self.banded else 0
+		if j - 1 < lim or j - 1 < 0:
 			return float('inf')
 		
 		return self.m[i][j-1].val + INDEL
 
 	def check_delete(self, i, j):
-		if i - 1 < 0:
+		x = j + 1 if self.banded else j
+		if i - 1 < 0 or x >= len(self.m[i]):
 			return float('inf')
 		
-		return self.m[i - 1][j].val + INDEL
+		return self.m[i - 1][x].val + INDEL
 
 	def check_match(self, i, j):
-		if i - 1 < 0 or j - 1 < 0:
+		x = j if self.banded else j - 1
+		lim = self.d - i + 1 if self.banded else 0
+		if i - 1 < 0 or x < lim:
 			return float('inf'), 0
-		last = self.m[i-1][j-1].val
+		last = self.m[i-1][x].val
 		
 		val = SUB
-		if self.seq1[j - 1] == self.seq2[i - 1]:
-			# if last == float('inf'):
-			# 	last = 0
+		x = j - self.d + i if self.banded else j
+		if self.seq1[x - 1] == self.seq2[i - 1]:
 			val = MATCH
 		
 		return val + last, val
@@ -142,9 +182,11 @@ class GeneSequencing:
 		if insert <= delete and insert <= match:
 			return self.m[i][j-1]
 		if delete < insert and delete <= match:
-			return self.m[i-1][j]
+			x = j + 1 if self.banded else j
+			return self.m[i-1][x]
 		if match < delete and match < insert:
-			return self.m[i-1][j-1]
+			x = j if self.banded else j - 1
+			return self.m[i-1][x]
 		Exception("ma")
 
 def replace(s, char, index):
